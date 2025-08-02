@@ -102,4 +102,9 @@ else
     exit 1
 fi
 
-echo "
+success "Instalação concluída com sucesso!"
+echo ""
+echo "O script foi instalado em: /usr/local/bin/updateGit"
+echo ""
+echo "Para usar: updateGit [diretório]"
+echo "Exemplo: updateGit ~/projetos"

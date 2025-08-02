@@ -7,7 +7,7 @@ set -e
 
 # Carregar módulo de utilitários de segurança
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/../lib/security_utils.sh"
+source "$SCRIPT_DIR/../../lib/security_utils.sh"
 
 echo -e "${BLUE}🔒 Executando verificações de segurança pré-commit...${RESET}"
 

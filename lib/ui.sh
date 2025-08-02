@@ -51,7 +51,7 @@ show_summary() {
     log "Total de repositórios encontrados: $total_repos"
     log "Repositórios atualizados com sucesso: $updated_repos"
     
-    if [ $failed_repos -gt 0 ]; then
+    if [ "$failed_repos" -gt 0 ]; then
         aviso_log "Repositórios com problemas: $failed_repos"
     else
         sucesso_log "✓ Concluído com sucesso! Todos os repositórios foram atualizados."
@@ -61,5 +61,5 @@ show_summary() {
 # Função para aguardar entrada do usuário
 wait_for_user() {
     echo ""
-    read -p "Pressione [Enter] para continuar..."
+    read -r -p "Pressione [Enter] para continuar..."
 }
