@@ -107,16 +107,20 @@ prepare_sources() {
     
     # Copy all project files (excluding build and dist directories)
     print_info "Copying project files..."
-    rsync -av --exclude="$BUILD_DIR" --exclude="$DIST_DIR" --exclude=".git" . "$BUILD_DIR/$PROJECT_NAME/"
     
-    # Remove additional development files
+    # Use tar with inline excludes to copy files safely
+    tar --exclude="$BUILD_DIR" --exclude="$DIST_DIR" --exclude=".git" \
+        --exclude="*.log" --exclude="REFACTORING_REPORT.md" \
+        -cf - . | (cd "$BUILD_DIR/$PROJECT_NAME" && tar -xf -)
+    
+    # Remove additional development files from the build
     cd "$BUILD_DIR/$PROJECT_NAME"
     print_info "Removing development files..."
     
-    rm -rf .github/workflows/
-    rm -f .gitignore
-    rm -f *.log
-    rm -f REFACTORING_REPORT.md
+    rm -rf .github/workflows/ 2>/dev/null || true
+    rm -f .gitignore 2>/dev/null || true
+    rm -f -- *.log 2>/dev/null || true
+    rm -f REFACTORING_REPORT.md 2>/dev/null || true
     
     cd "$SCRIPT_DIR"
     
@@ -186,10 +190,10 @@ create_checksums() {
     cd "$DIST_DIR"
     
     # Generate SHA256 checksums
-    sha256sum *.zip *.tar.gz *.tar.xz > checksums.sha256
+    sha256sum ./*.zip ./*.tar.gz ./*.tar.xz > checksums.sha256
     
     # Generate MD5 checksums
-    md5sum *.zip *.tar.gz *.tar.xz > checksums.md5
+    md5sum ./*.zip ./*.tar.gz ./*.tar.xz > checksums.md5
     
     cd "$SCRIPT_DIR"
     
