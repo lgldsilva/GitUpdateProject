@@ -52,6 +52,9 @@ jobs:
       run: |
         echo "📦 Preparing source files for distribution..."
         
+        # Create the destination directory first
+        mkdir -p build/$PROJECT_NAME
+        
         # Use tar with excludes to copy files safely (avoiding recursive copy)
         tar --exclude="build" --exclude="dist" --exclude=".git" \
             --exclude="*.log" --exclude="REFACTORING_REPORT.md" \
