@@ -1,0 +1,90 @@
+# Gitleaks Configuration
+# This file configures gitleaks to detect secrets, tokens, passwords, and other sensitive information
+
+title = "GitUpdate Project - Security Configuration"
+
+[[rules]]
+description = "AWS Access Key"
+id = "aws-access-token"
+regex = '''(A3T[A-Z0-9]|AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}'''
+tags = ["key", "AWS"]
+
+[[rules]]
+description = "AWS Secret Key"
+id = "aws-secret-key"
+regex = '''(?i)aws(.{0,20})?(?-i)['\"][0-9a-zA-Z\/+]{40}['\"]'''
+tags = ["key", "AWS"]
+
+[[rules]]
+description = "GitHub Token"
+id = "github-token"
+regex = '''ghp_[0-9a-zA-Z]{36}|gho_[0-9a-zA-Z]{36}|ghu_[0-9a-zA-Z]{36}|ghs_[0-9a-zA-Z]{36}|ghr_[0-9a-zA-Z]{36}'''
+tags = ["key", "GitHub"]
+
+[[rules]]
+description = "Generic API Key"
+id = "generic-api-key"
+regex = '''(?i)(api_key|apikey|api-key)(.{0,20})?['\"][0-9a-zA-Z]{32,45}['\"]'''
+tags = ["key", "API"]
+
+[[rules]]
+description = "Generic Secret"
+id = "generic-secret"
+regex = '''(?i)(secret|password|pwd|pass)(.{0,20})?['\"][0-9a-zA-Z!@#$%^&*()_+\-=\[\]{}|;':\",./<>?]{8,}['\"]'''
+tags = ["secret", "password"]
+
+[[rules]]
+description = "Database Connection String"
+id = "database-connection"
+regex = '''(?i)(mongodb|mysql|postgres|redis)://[^\s'"]+'''
+tags = ["database", "connection"]
+
+[[rules]]
+description = "Private Key"
+id = "private-key"
+regex = '''-----BEGIN [A-Z]+ PRIVATE KEY-----'''
+tags = ["key", "private"]
+
+[[rules]]
+description = "JWT Token"
+id = "jwt-token"
+regex = '''eyJ[A-Za-z0-9_/+-]*\.eyJ[A-Za-z0-9_/+-]*\.[A-Za-z0-9_/+-]*'''
+tags = ["token", "JWT"]
+
+[[rules]]
+description = "Email/Password in Code"
+id = "email-password"
+regex = '''(?i)(email|user)(.{0,20})?['"]\w+@\w+\.\w+['"](.{0,50})?(password|pass|pwd)(.{0,20})?['"]\w+['"]]'''
+tags = ["credentials"]
+
+[[rules]]
+description = "IP Address with Port"
+id = "ip-address-port"
+regex = '''\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}:[0-9]+\b'''
+tags = ["network", "ip"]
+
+# Allowlist - paths to ignore
+[allowlist]
+paths = [
+    "README.md",
+    "README_v2.md", 
+    "RESUMO_MODULARIZACAO.md",
+    ".github/workflows/security-scan.yml",
+    ".gitleaks.toml",
+    "lib/config.sh"
+]
+
+# Allowlist - specific findings to ignore (use commit SHA or regex)
+commits = []
+
+# Allowlist - regex patterns to ignore
+regexes = [
+    '''example\.com''',
+    '''localhost''',
+    '''127\.0\.0\.1''',
+    '''0\.0\.0\.0''',
+    '''test\.password''',
+    '''YOUR_TOKEN_HERE''',
+    '''PLACEHOLDER''',
+    '''GIT_ASKPASS="/bin/echo"'''
+]
