@@ -52,16 +52,17 @@ jobs:
       run: |
         echo "📦 Preparing source files for distribution..."
         
-        # Copy all project files to build directory
-        cp -r . build/$PROJECT_NAME/
+        # Use tar with excludes to copy files safely (avoiding recursive copy)
+        tar --exclude="build" --exclude="dist" --exclude=".git" \
+            --exclude="*.log" --exclude="REFACTORING_REPORT.md" \
+            -cf - . | (cd build/$PROJECT_NAME && tar -xf -)
         
-        # Remove development files
+        # Remove additional development files
         cd build/$PROJECT_NAME/
-        rm -rf .git/
-        rm -rf .github/workflows/
-        rm -f .gitignore
-        rm -f *.log
-        rm -f REFACTORING_REPORT.md
+        rm -rf .github/ 2>/dev/null || true
+        rm -f .gitignore 2>/dev/null || true
+        rm -f ./*.log 2>/dev/null || true
+        rm -f REFACTORING_REPORT.md 2>/dev/null || true
 
     - name: Create version info file
       run: |
@@ -112,9 +113,9 @@ jobs:
         echo "🔐 Generating checksums..."
         cd dist/
         
-        # Generate checksums
-        sha256sum *.zip *.tar.gz *.tar.xz > checksums.sha256
-        md5sum *.zip *.tar.gz *.tar.xz > checksums.md5
+        # Generate checksums using proper glob syntax
+        sha256sum ./*.zip ./*.tar.gz ./*.tar.xz > checksums.sha256
+        md5sum ./*.zip ./*.tar.gz ./*.tar.xz > checksums.md5
         
         echo "📋 Checksums generated:"
         cat checksums.sha256
@@ -151,14 +152,31 @@ jobs:
            SUDO="sudo"
         fi
         
-        # Detect archive type
-        if [ -f "$PROJECT_NAME"*.tar.gz ]; then
-            ARCHIVE=$(ls $PROJECT_NAME*.tar.gz | head -1)
-            EXTRACT_CMD="tar -xzf"
-        elif [ -f "$PROJECT_NAME"*.zip ]; then
-            ARCHIVE=$(ls $PROJECT_NAME*.zip | head -1)
-            EXTRACT_CMD="unzip"
-        else
+        # Detect archive type using safer approach
+        ARCHIVE=""
+        EXTRACT_CMD=""
+        
+        # Check for tar.gz files
+        for file in "$PROJECT_NAME"*.tar.gz; do
+            if [ -f "$file" ]; then
+                ARCHIVE="$file"
+                EXTRACT_CMD="tar -xzf"
+                break
+            fi
+        done
+        
+        # Check for zip files if no tar.gz found
+        if [ -z "$ARCHIVE" ]; then
+            for file in "$PROJECT_NAME"*.zip; do
+                if [ -f "$file" ]; then
+                    ARCHIVE="$file"
+                    EXTRACT_CMD="unzip"
+                    break
+                fi
+            done
+        fi
+        
+        if [ -z "$ARCHIVE" ]; then
             echo -e "${RED}❌ No suitable archive found!${NC}"
             exit 1
         fi
