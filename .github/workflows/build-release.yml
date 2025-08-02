@@ -9,6 +9,11 @@ on:
     branches: [ main, master, develop ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+  packages: write
+  actions: read
+
 env:
   PROJECT_NAME: GitUpdateProject
   
@@ -277,6 +282,9 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     name: Create GitHub Release
+    permissions:
+      contents: write
+      packages: write
     
     steps:
     - name: Get version from tag
