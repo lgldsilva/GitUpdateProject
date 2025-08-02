@@ -29,7 +29,8 @@ TOTAL_REPOS=10
 PROCESSED_REPOS=0
 
 echo "Simulando processamento de 10 itens:"
-for i in $(seq 1 10); do
+# Usar range bash nativo em vez de seq (mais compatível)
+for i in {1..10}; do
     increment_progress
     sleep 0.5
 done

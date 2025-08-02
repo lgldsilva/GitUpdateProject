@@ -36,8 +36,14 @@ draw_progress_bar() {
         progress_bar="${progress_bar}${EMPTY_BAR_CHAR}"
     done
     
-    # Mover cursor para o início da linha e limpar
-    echo -ne "\r\033[K"
+    # Mover cursor para o início da linha e limpar (compatível com Windows)
+    if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
+        # Windows Git Bash - usar método mais simples
+        echo -ne "\r$(printf '%*s' 80 '')\r"
+    else
+        # Linux/macOS - usar escape ANSI
+        echo -ne "\r\033[K"
+    fi
     
     # Exibir barra de progresso com porcentagem
     echo -ne "Progresso: [${progress_bar}] ${percent}% (${PROCESSED_REPOS}/${TOTAL_REPOS})"

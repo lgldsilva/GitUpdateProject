@@ -11,7 +11,7 @@ source "$SCRIPT_DIR/../lib/security_utils.sh"
 
 # Project information
 PROJECT_NAME="GitUpdate Project"
-SCAN_DATE=$(date '+%Y-%m-%d %H:%M:%S')
+SCAN_DATE=$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || date)
 REPORT_DIR="security-reports"
 
 echo -e "${BLUE}🔒 $PROJECT_NAME - Auditoria de Segurança${RESET}"

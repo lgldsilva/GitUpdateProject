@@ -72,8 +72,8 @@ get_version_info() {
         VERSION="dev-$(git rev-parse --short HEAD)"
     fi
     
-    BUILD_DATE=$(date -u +%Y-%m-%d)
-    BUILD_TIME=$(date -u +%H:%M:%S)
+    BUILD_DATE=$(date -u '+%Y-%m-%d' 2>/dev/null || date '+%Y-%m-%d')
+    BUILD_TIME=$(date -u '+%H:%M:%S' 2>/dev/null || date '+%H:%M:%S')
     COMMIT_SHA=$(git rev-parse HEAD)
     BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
     

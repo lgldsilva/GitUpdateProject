@@ -130,88 +130,62 @@ jobs:
 
     - name: Create installation script
       run: |
-        echo "📜 Creating installation script..."
+        echo "📜 Creating installation script for this release..."
         cd dist/
-        cat > install.sh << 'INSTALL_EOF'
-        #!/bin/bash
-        # GitUpdateProject - Quick Installation Script
         
-        set -e
-        
-        PROJECT_NAME="GitUpdateProject"
-        INSTALL_DIR="/opt/$PROJECT_NAME"
-        BIN_DIR="/usr/local/bin"
-        
-        # Colors
-        RED='\033[0;31m'
-        GREEN='\033[0;32m'
-        YELLOW='\033[1;33m'
-        NC='\033[0m'
-        
-        echo -e "${GREEN}🚀 GitUpdateProject Installation Script${NC}"
-        echo "=================================================="
-        
-        # Check if running as root
-        if [[ $EUID -eq 0 ]]; then
-           echo -e "${YELLOW}⚠️  Running as root - installation will be system-wide${NC}"
-           SUDO=""
-        else
-           echo -e "${YELLOW}🔒 Will use sudo for system installation${NC}"
-           SUDO="sudo"
-        fi
-        
-        # Detect archive type using safer approach
-        ARCHIVE=""
-        EXTRACT_CMD=""
-        
-        # Check for tar.gz files
-        for file in "$PROJECT_NAME"*.tar.gz; do
-            if [ -f "$file" ]; then
-                ARCHIVE="$file"
-                EXTRACT_CMD="tar -xzf"
-                break
-            fi
-        done
-        
-        # Check for zip files if no tar.gz found
-        if [ -z "$ARCHIVE" ]; then
-            for file in "$PROJECT_NAME"*.zip; do
-                if [ -f "$file" ]; then
-                    ARCHIVE="$file"
-                    EXTRACT_CMD="unzip"
-                    break
-                fi
-            done
-        fi
-        
-        if [ -z "$ARCHIVE" ]; then
-            echo -e "${RED}❌ No suitable archive found!${NC}"
-            exit 1
-        fi
-        
-        echo -e "${GREEN}📦 Found archive: $ARCHIVE${NC}"
-        
-        # Extract archive
-        echo -e "${GREEN}📂 Extracting archive...${NC}"
-        $EXTRACT_CMD "$ARCHIVE"
-        
-        # Install
-        echo -e "${GREEN}📁 Installing to $INSTALL_DIR...${NC}"
-        $SUDO mkdir -p "$INSTALL_DIR"
-        $SUDO cp -r $PROJECT_NAME/* "$INSTALL_DIR/"
-        $SUDO chmod +x "$INSTALL_DIR"/*.sh
-        
-        # Create symlinks  
-        echo -e "${GREEN}🔗 Creating system links...${NC}"
-        $SUDO ln -sf "$INSTALL_DIR/updateGit_v2.sh" "$BIN_DIR/updateGit"
-        
-        echo -e "${GREEN}✅ Installation completed successfully!${NC}"
-        echo ""
-        echo -e "${YELLOW}📋 Usage:${NC}"
-        echo "  updateGit [directory]     - Update repositories in directory"
-        INSTALL_EOF
+        # Create a release-specific installer script
+        echo '#!/bin/bash' > install.sh
+        echo '# GitUpdateProject Release Installer' >> install.sh
+        echo 'set -e' >> install.sh
+        echo '' >> install.sh
+        echo 'REPO_OWNER="lgldsilva"' >> install.sh
+        echo 'REPO_NAME="GitUpdateProject"' >> install.sh
+        echo "VERSION=\"${{ steps.version.outputs.VERSION }}\"" >> install.sh
+        echo 'BASE_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/${VERSION}"' >> install.sh
+        echo '' >> install.sh
+        echo 'log() { echo -e "\033[32m[INFO]\033[0m $1"; }' >> install.sh  
+        echo 'error() { echo -e "\033[31m[ERROR]\033[0m $1"; exit 1; }' >> install.sh
+        echo '' >> install.sh
+        echo 'echo "GitUpdateProject Installer - Version $VERSION"' >> install.sh
+        echo 'echo "============================================="' >> install.sh
+        echo '' >> install.sh
+        echo '# Check dependencies' >> install.sh
+        echo 'command -v curl >/dev/null || error "curl é necessário"' >> install.sh
+        echo 'command -v tar >/dev/null || command -v unzip >/dev/null || error "tar ou unzip necessário"' >> install.sh  
+        echo '' >> install.sh
+        echo '# Download and install' >> install.sh
+        echo 'TEMP_DIR="/tmp/gitupdate-$$"' >> install.sh
+        echo 'mkdir -p "$TEMP_DIR" && cd "$TEMP_DIR"' >> install.sh
+        echo '' >> install.sh
+        echo '# Try tar.gz first, then zip' >> install.sh
+        echo 'for format in tar.gz zip; do' >> install.sh
+        echo '  filename="${REPO_NAME}-${VERSION}.${format}"' >> install.sh
+        echo '  log "Tentando baixar: $filename"' >> install.sh
+        echo '  if curl -L -f -o "$filename" "${BASE_URL}/$filename" 2>/dev/null; then' >> install.sh
+        echo '    log "Download concluído: $filename"' >> install.sh
+        echo '    if [[ "$format" == "tar.gz" ]]; then' >> install.sh
+        echo '      tar -xzf "$filename"' >> install.sh  
+        echo '    else' >> install.sh
+        echo '      unzip -q "$filename"' >> install.sh
+        echo '    fi' >> install.sh
+        echo '    extracted_dir=$(find . -maxdepth 1 -type d -name "*${REPO_NAME}*" | head -1)' >> install.sh
+        echo '    if [ -n "$extracted_dir" ]; then' >> install.sh
+        echo '      sudo mkdir -p /opt/GitUpdateProject' >> install.sh
+        echo '      sudo cp -r "$extracted_dir"/* /opt/GitUpdateProject/' >> install.sh
+        echo '      sudo find /opt/GitUpdateProject -name "*.sh" -exec chmod +x {} \;' >> install.sh
+        echo '      sudo ln -sf /opt/GitUpdateProject/updateGit_v2.sh /usr/local/bin/updateGit' >> install.sh
+        echo '      log "GitUpdateProject $VERSION instalado com sucesso!"' >> install.sh
+        echo '      log "Use: updateGit [diretorio]"' >> install.sh
+        echo '      cd / && rm -rf "$TEMP_DIR"' >> install.sh
+        echo '      exit 0' >> install.sh
+        echo '    fi' >> install.sh
+        echo '  fi' >> install.sh
+        echo 'done' >> install.sh
+        echo '' >> install.sh
+        echo 'error "Falha ao baixar. Verifique se a release $VERSION existe."' >> install.sh
         
         chmod +x install.sh
+        echo "✅ Created release-specific installer for version ${{ steps.version.outputs.VERSION }}"
 
     - name: Create build info
       run: |

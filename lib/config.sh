@@ -10,8 +10,17 @@ source "$(dirname "${BASH_SOURCE[0]}")/colors.sh"
 export TOTAL_REPOS=0
 export PROCESSED_REPOS=0
 export PROGRESS_BAR_WIDTH=50
-export PROGRESS_BAR_CHAR="█"
-export EMPTY_BAR_CHAR="░"
+
+# Caracteres da barra de progresso - adaptar ao sistema
+if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
+    # Windows Git Bash - usar caracteres ASCII simples para compatibilidade
+    export PROGRESS_BAR_CHAR="#"
+    export EMPTY_BAR_CHAR="-"
+else
+    # Linux/macOS - usar caracteres Unicode para visual melhor
+    export PROGRESS_BAR_CHAR="█"
+    export EMPTY_BAR_CHAR="░"
+fi
 
 # Configurações de execução
 export DEBUG_MODE=false

@@ -76,7 +76,22 @@ main() {
     # Verificar se o diretório raiz é um link simbólico
     if [ -L "$root_dir" ]; then
         local link_target
-        link_target=$(readlink -f "$root_dir")
+        # Função cross-platform para readlink -f
+        if command -v readlink >/dev/null 2>&1; then
+            if readlink -f "$root_dir" >/dev/null 2>&1; then
+                # Linux/GNU readlink
+                link_target=$(readlink -f "$root_dir")
+            elif command -v realpath >/dev/null 2>&1; then
+                # macOS/BSD fallback para realpath
+                link_target=$(realpath "$root_dir")
+            else
+                # Fallback manual para macOS
+                link_target=$(cd "$root_dir" && pwd -P)
+            fi
+        else
+            # Último fallback
+            link_target=$(cd "$root_dir" && pwd -P)
+        fi
         log "Diretório raiz é um link simbólico apontando para: $link_target"
         
         if [ "$FOLLOW_SYMLINKS" = true ]; then

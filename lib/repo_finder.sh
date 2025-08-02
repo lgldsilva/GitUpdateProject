@@ -15,12 +15,19 @@ find_git_repositories() {
     log "Procurando repositórios Git em: $root_dir"
     
     # Usar find para procurar diretórios .git em qualquer nível
+    git_dirs=()
     if [ "$FOLLOW_SYMLINKS" = true ]; then
         debug_log "Executando: find -L \"$root_dir\" -type d -name \".git\" (seguindo links simbólicos)"
-        mapfile -t git_dirs < <(find -L "$root_dir" -type d -name ".git" 2>/dev/null)
+        # Método compatível com todas as versões do Bash
+        while IFS= read -r -d '' dir; do
+            git_dirs+=("$dir")
+        done < <(find -L "$root_dir" -type d -name ".git" -print0 2>/dev/null)
     else
         debug_log "Executando: find \"$root_dir\" -type d -name \".git\" (sem seguir links simbólicos)"
-        mapfile -t git_dirs < <(find "$root_dir" -type d -name ".git" 2>/dev/null)
+        # Método compatível com todas as versões do Bash  
+        while IFS= read -r -d '' dir; do
+            git_dirs+=("$dir")
+        done < <(find "$root_dir" -type d -name ".git" -print0 2>/dev/null)
     fi
     
     # Verificar se temos permissão para todos os diretórios
@@ -28,17 +35,19 @@ find_git_repositories() {
         debug_log "Nenhum diretório .git encontrado, verificando problemas de permissão..."
         local find_result
         if [ "$FOLLOW_SYMLINKS" = true ]; then
-            find_result=$(find -L "$root_dir" -type d -name ".git" -o -type d -not -readable 2>&1)
+            find_result=$(find -L "$root_dir" -type d -name ".git" 2>&1)
         else
-            find_result=$(find "$root_dir" -type d -name ".git" -o -type d -not -readable 2>&1)
+            find_result=$(find "$root_dir" -type d -name ".git" 2>&1)
         fi
         if [[ $find_result == *"Permission denied"* ]]; then
             debug_log "Problemas de permissão detectados: $find_result"
         fi
         debug_log "Listando diretórios no primeiro nível:"
-        ls -la "$root_dir" | while read -r line; do
-            debug_log "  $line"
-        done
+        if command -v ls >/dev/null 2>&1; then
+            ls -la "$root_dir" 2>/dev/null | while read -r line; do
+                debug_log "  $line"
+            done
+        fi
     fi
     
     # Se não encontrou nenhum repositório
