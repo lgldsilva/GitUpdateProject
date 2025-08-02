@@ -173,9 +173,20 @@ jobs:
         echo '      sudo mkdir -p /opt/GitUpdateProject' >> install.sh
         echo '      sudo cp -r "$extracted_dir"/* /opt/GitUpdateProject/' >> install.sh
         echo '      sudo find /opt/GitUpdateProject -name "*.sh" -exec chmod +x {} \;' >> install.sh
-        echo '      sudo ln -sf /opt/GitUpdateProject/updateGit_v2.sh /usr/local/bin/updateGit' >> install.sh
-        echo '      log "GitUpdateProject $VERSION instalado com sucesso!"' >> install.sh
-        echo '      log "Use: updateGit [diretorio]"' >> install.sh
+        echo '      # Create wrapper script instead of direct symlink' >> install.sh
+        echo '      sudo bash -c '\''cat > /usr/local/bin/updateGit << "WRAPPER_EOF"' >> install.sh
+        echo '#!/bin/bash' >> install.sh
+        echo '# GitUpdateProject Wrapper Script' >> install.sh
+        echo 'exec /opt/GitUpdateProject/updateGit_v2.sh "$@"' >> install.sh
+        echo 'WRAPPER_EOF'\''' >> install.sh
+        echo '      sudo chmod +x /usr/local/bin/updateGit' >> install.sh
+        echo '      # Verificar se a instalação funcionou' >> install.sh
+        echo '      if /usr/local/bin/updateGit --help >/dev/null 2>&1; then' >> install.sh
+        echo '        log "GitUpdateProject $VERSION instalado com sucesso!"' >> install.sh
+        echo '        log "Use: updateGit [diretorio]"' >> install.sh
+        echo '      else' >> install.sh
+        echo '        error "Falha na verificação pós-instalação"' >> install.sh
+        echo '      fi' >> install.sh
         echo '      cd / && rm -rf "$TEMP_DIR"' >> install.sh
         echo '      exit 0' >> install.sh
         echo '    fi' >> install.sh

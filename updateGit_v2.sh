@@ -5,16 +5,47 @@
 
 # Definir diretório base do sistema
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Se o script está sendo executado de /usr/local/bin (via wrapper), 
+# redirecionar para o diretório de instalação real
+if [[ "$SCRIPT_DIR" == "/usr/local/bin" ]]; then
+    SCRIPT_DIR="/opt/GitUpdateProject"
+    # Debug: informar sobre o redirecionamento
+    [[ "${DEBUG:-}" == "1" ]] && echo "🔄 Redirecionado de /usr/local/bin para $SCRIPT_DIR"
+fi
+
 LIB_DIR="$SCRIPT_DIR/lib"
 
+# Verificar se o diretório lib existe, caso contrário tentar localizar
+if [[ ! -d "$LIB_DIR" ]]; then
+    # Tentar encontrar o diretório lib em locais comuns
+    for possible_dir in "/opt/GitUpdateProject" "$(dirname "$0")" "$(pwd)"; do
+        if [[ -d "$possible_dir/lib" ]]; then
+            SCRIPT_DIR="$possible_dir"
+            LIB_DIR="$SCRIPT_DIR/lib"
+            break
+        fi
+    done
+fi
+
+# Verificação final - se ainda não encontrou as bibliotecas, mostrar erro
+if [[ ! -d "$LIB_DIR" ]]; then
+    echo "❌ ERRO: Não foi possível encontrar o diretório de bibliotecas (lib/)" >&2
+    echo "   Procurado em: $LIB_DIR" >&2
+    echo "   Certifique-se de que o GitUpdateProject foi instalado corretamente." >&2
+    exit 1
+fi
+
 # Carregar todos os módulos necessários
-source "$LIB_DIR/colors.sh"
-source "$LIB_DIR/config.sh"
-source "$LIB_DIR/logger.sh"
-source "$LIB_DIR/progress.sh"
-source "$LIB_DIR/ui.sh"
-source "$LIB_DIR/repo_finder.sh"
-source "$LIB_DIR/repo_updater.sh"
+for lib_file in "colors.sh" "config.sh" "logger.sh" "progress.sh" "ui.sh" "repo_finder.sh" "repo_updater.sh"; do
+    lib_path="$LIB_DIR/$lib_file"
+    if [[ -f "$lib_path" ]]; then
+        source "$lib_path"
+    else
+        echo "❌ ERRO: Biblioteca não encontrada: $lib_path" >&2
+        exit 1
+    fi
+done
 
 # Função principal do sistema
 main() {
