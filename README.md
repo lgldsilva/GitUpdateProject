@@ -251,5 +251,3 @@ Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICE
 <p align="center">
   Feito com ❤️ por <a href="https://github.com/lgldsilva">lgldsilva</a>
 </p>
-
-
