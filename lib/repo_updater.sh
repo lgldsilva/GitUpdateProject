@@ -12,7 +12,8 @@ source "$(dirname "${BASH_SOURCE[0]}")/git_operations.sh"
 # Função principal para atualizar um repositório Git
 update_git_repo() {
     local repo_path=$1
-    local repo_name=$(basename "$repo_path")
+    local repo_name
+    repo_name=$(basename "$repo_path")
     local status=0
     local return_status=0
     local branch_found=false

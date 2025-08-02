@@ -75,7 +75,8 @@ main() {
     
     # Verificar se o diretório raiz é um link simbólico
     if [ -L "$root_dir" ]; then
-        local link_target=$(readlink -f "$root_dir")
+        local link_target
+        link_target=$(readlink -f "$root_dir")
         log "Diretório raiz é um link simbólico apontando para: $link_target"
         
         if [ "$FOLLOW_SYMLINKS" = true ]; then
@@ -102,8 +103,9 @@ main() {
         for git_dir in "${FOUND_GIT_DIRS[@]}"; do
             ((total_repos++))
             
-            local repo_dir="$(dirname "$git_dir")"
-            local relative_path="${repo_dir#$root_dir/}"
+            local repo_dir
+            repo_dir="$(dirname "$git_dir")"
+            local relative_path="${repo_dir#"$root_dir"/}"
             
             log "Encontrado repositório Git: $relative_path"
             
@@ -132,7 +134,7 @@ main() {
     fi
     
     # Voltar para o diretório inicial
-    cd "$initial_dir"
+    cd "$initial_dir" || exit
     
     # Mostrar resumo da execução
     show_summary "$total_repos" "$updated_repos" "$failed_repos"

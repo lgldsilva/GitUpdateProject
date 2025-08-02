@@ -9,7 +9,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
 # Função para desenhar a barra de progresso
 draw_progress_bar() {
     # Se não temos repositórios, não exibir a barra
-    if [ $TOTAL_REPOS -eq 0 ]; then
+    if [ "$TOTAL_REPOS" -eq 0 ]; then
         return
     fi
     
@@ -20,7 +20,7 @@ draw_progress_bar() {
     local filled=$((PROGRESS_BAR_WIDTH * PROCESSED_REPOS / TOTAL_REPOS))
     
     # Se temos pelo menos um repositório processado, garantir pelo menos um caractere
-    if [ $PROCESSED_REPOS -gt 0 ] && [ $filled -eq 0 ]; then
+    if [ "$PROCESSED_REPOS" -gt 0 ] && [ $filled -eq 0 ]; then
         filled=1
     fi
     
@@ -57,7 +57,7 @@ reset_progress() {
 
 # Função para finalizar a barra de progresso
 finish_progress_bar() {
-    if [ $TOTAL_REPOS -gt 0 ]; then
+    if [ "$TOTAL_REPOS" -gt 0 ]; then
         echo  # Nova linha após a barra de progresso
     fi
 }

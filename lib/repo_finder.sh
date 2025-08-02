@@ -36,7 +36,7 @@ find_git_repositories() {
             debug_log "Problemas de permissão detectados: $find_result"
         fi
         debug_log "Listando diretórios no primeiro nível:"
-        ls -la "$root_dir" | while read line; do
+        ls -la "$root_dir" | while read -r line; do
             debug_log "  $line"
         done
     fi
@@ -55,7 +55,7 @@ find_git_repositories() {
                 find_output=$(find "$root_dir" -name ".git" -type d 2>&1)
             fi
             if [ -n "$find_output" ]; then
-                echo "$find_output" | while read line; do
+                echo "$find_output" | while read -r line; do
                     debug_log "  Encontrado: $line"
                 done
             else

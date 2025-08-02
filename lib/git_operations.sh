@@ -17,19 +17,20 @@ execute_pull() {
     local status=0
     
     # Verificar o hash antes do pull
-    local before_hash=$(git rev-parse HEAD 2>/dev/null)
+    local before_hash
+    before_hash=$(git rev-parse HEAD 2>/dev/null)
     
     # Executar o comando (com ou sem timeout)
     if [ "$use_timeout" = true ]; then
         # Capturar saída de erro também para debug
-        timeout 10 $cmd > "$output_file" 2>&1 || {
+        timeout 10 "$cmd" > "$output_file" 2>&1 || {
             status=$?
             if [ $status -eq 124 ]; then
                 aviso_log "  Timeout ao atualizar $item_name (possível solicitação de credenciais)"
             else
                 aviso_log "  Falha ao atualizar $item_name ($status)"
                 if [ "$DEBUG_MODE" = true ]; then
-                    debug_log "  Detalhes do erro: $(cat "$output_file" | head -5)"
+                    debug_log "  Detalhes do erro: $(head -5 "$output_file")"
                 fi
             fi
             rm -f "$output_file"
@@ -41,7 +42,7 @@ execute_pull() {
             status=$?
             aviso_log "  Falha ao atualizar $item_name ($status)"
             if [ "$DEBUG_MODE" = true ]; then
-                debug_log "  Detalhes do erro: $(cat "$output_file" | head -5)"
+                debug_log "  Detalhes do erro: $(head -5 "$output_file")"
             fi
             rm -f "$output_file"
             return $status
@@ -50,13 +51,15 @@ execute_pull() {
     
     # Se chegamos aqui, o comando foi bem sucedido
     # Verificar mudanças
-    local after_hash=$(git rev-parse HEAD 2>/dev/null)
+    local after_hash
+    after_hash=$(git rev-parse HEAD 2>/dev/null)
     if [ "$before_hash" != "$after_hash" ]; then
         # Verificar quantos commits foram trazidos
-        local num_commits=$(git log --pretty=oneline ${before_hash}..${after_hash} 2>/dev/null | wc -l)
+        local num_commits
+        num_commits=$(git log --pretty=oneline "${before_hash}".."${after_hash}" 2>/dev/null | wc -l)
         sucesso_log "  $item_name: Baixados $num_commits novos commits"
         # Mostrar informações sobre os commits
-        git log --pretty=format:"    %h - %s (%an, %ar)" -n 3 ${before_hash}..${after_hash} 2>/dev/null
+        git log --pretty=format:"    %h - %s (%an, %ar)" -n 3 "${before_hash}".."${after_hash}" 2>/dev/null
         echo ""
     else
         sucesso_log "  $item_name: Já está atualizado"
@@ -168,7 +171,7 @@ try_generic_pull() {
         
         local use_timeout=$SKIP_AUTH
         # Usar timeout para evitar ficar preso em solicitação de senha
-        do_pull "${REPO_REMOTES[0]}" $use_timeout
+        do_pull "${REPO_REMOTES[0]}" "$use_timeout"
         return $?
     else
         erro_log "  Não foi possível atualizar o repositório: nenhum remote definido"

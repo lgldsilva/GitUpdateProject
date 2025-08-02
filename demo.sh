@@ -15,7 +15,7 @@ echo "=================================================="
 # Função para pausar e aguardar confirmação
 wait_for_user() {
     echo ""
-    read -p "Pressione [Enter] para continuar..."
+    read -r -p "Pressione [Enter] para continuar..."
     echo ""
 }
 

@@ -60,7 +60,7 @@ fi
 # Verificar se já existe uma instalação
 if [ -L "$INSTALL_DIR/$LINK_NAME" ]; then
     warn "Link simbólico já existe em $INSTALL_DIR/$LINK_NAME"
-    read -p "Deseja sobrescrever? (s/N): " response
+    read -r -p "Deseja sobrescrever? (s/N): " response
     if [[ ! "$response" =~ ^[Ss]$ ]]; then
         log "Instalação cancelada"
         exit 0

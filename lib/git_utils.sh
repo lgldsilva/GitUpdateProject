@@ -31,7 +31,7 @@ run_git_command() {
         status=$?
         aviso_log "$error_msg ($status)"
         if [ "$DEBUG_MODE" = true ] && [ "$debug_error" = true ]; then
-            debug_log "  Detalhes do erro: $(cat "$output_file" | head -5)"
+            debug_log "  Detalhes do erro: $(head -5 "$output_file")"
         fi
         rm -f "$output_file"
         return $status

@@ -9,7 +9,8 @@ source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
 
 # Função base para logging central
 _log_base() {
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local timestamp
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     local tag="$1"
     local color="$2"
     local message="$3"
