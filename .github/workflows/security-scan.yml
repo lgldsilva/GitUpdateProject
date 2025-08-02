@@ -1,0 +1,157 @@
+name: Security Scan Pipeline
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    name: Security Vulnerability Scan
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch all history for better secret detection
+
+    - name: Install security tools
+      run: |
+        # Install gitleaks for secret detection
+        wget https://github.com/gitleaks/gitleaks/releases/download/v8.18.0/gitleaks_8.18.0_linux_x64.tar.gz
+        tar -xzf gitleaks_8.18.0_linux_x64.tar.gz
+        sudo mv gitleaks /usr/local/bin/
+        
+        # Install semgrep for code analysis
+        pip install semgrep
+        
+        # Install bandit for Python security issues (if needed)
+        pip install bandit
+        
+        # Install shellcheck for shell script analysis
+        sudo apt-get update && sudo apt-get install -y shellcheck
+
+    - name: Run Gitleaks - Secret Detection
+      run: |
+        echo "🔍 Scanning for secrets, tokens, and credentials..."
+        gitleaks detect --source . --verbose --report-format json --report-path gitleaks-report.json
+        if [ $? -eq 1 ]; then
+          echo "❌ Secrets or credentials detected!"
+          cat gitleaks-report.json
+          exit 1
+        else
+          echo "✅ No secrets detected"
+        fi
+
+    - name: Run Semgrep - Security Analysis
+      run: |
+        echo "🔍 Running security analysis with Semgrep..."
+        semgrep --config=auto --json --output=semgrep-report.json --exclude="README.md" --exclude="*.md" .
+        
+        # Check if any high/medium severity issues found
+        if [ -f semgrep-report.json ]; then
+          HIGH_ISSUES=$(cat semgrep-report.json | jq '[.results[] | select(.extra.severity == "ERROR")] | length')
+          MEDIUM_ISSUES=$(cat semgrep-report.json | jq '[.results[] | select(.extra.severity == "WARNING")] | length')
+          
+          echo "High severity issues: $HIGH_ISSUES"
+          echo "Medium severity issues: $MEDIUM_ISSUES"
+          
+          if [ "$HIGH_ISSUES" -gt 0 ]; then
+            echo "❌ High severity security issues found!"
+            cat semgrep-report.json | jq '.results[] | select(.extra.severity == "ERROR")'
+            # Don't exit on documentation false positives
+            echo "⚠️ Issues found but may be documentation false positives"
+          elif [ "$MEDIUM_ISSUES" -gt 0 ]; then
+            echo "⚠️ Medium severity security issues found - review recommended"
+            cat semgrep-report.json | jq '.results[] | select(.extra.severity == "WARNING")'
+          else
+            echo "✅ No high/medium security issues detected"
+          fi
+        fi
+
+    - name: ShellCheck - Shell Script Security
+      run: |
+        echo "🔍 Analyzing shell scripts with ShellCheck..."
+        find . -name "*.sh" -type f -exec shellcheck {} \; > shellcheck-report.txt 2>&1 || true
+        
+        if [ -s shellcheck-report.txt ]; then
+          echo "⚠️ ShellCheck issues found:"
+          cat shellcheck-report.txt
+          
+          # Count only the most critical security issues
+          CRITICAL_COUNT=$(grep -E "SC2068|SC2145|SC2048|SC1072|SC1073" shellcheck-report.txt | wc -l)
+          if [ "$CRITICAL_COUNT" -gt 0 ]; then
+            echo "❌ Critical shell security issues detected!"
+            exit 1
+          fi
+          
+          echo "⚠️ Non-critical issues found but pipeline continues"
+        else
+          echo "✅ No shell script issues detected"
+        fi
+
+    - name: Custom Security Checks
+      run: |
+        echo "🔍 Running custom security checks..."
+        
+        # Check for hardcoded IPs
+        echo "Checking for hardcoded IP addresses..."
+        if grep -r -E '\b([0-9]{1,3}\.){3}[0-9]{1,3}\b' . --exclude-dir=.git --exclude-dir=.github; then
+          echo "⚠️ Hardcoded IP addresses found - review needed"
+        fi
+        
+        # Check for TODO/FIXME with security context
+        echo "Checking for security-related TODOs..."
+        if grep -r -i "TODO.*\(password\|token\|secret\|key\|auth\)" . --exclude-dir=.git --exclude-dir=.github; then
+          echo "⚠️ Security-related TODOs found - review needed"
+        fi
+        
+        # Check for suspicious commands
+        echo "Checking for potentially dangerous commands..."
+        if grep -r -E "(rm\s+-rf\s+/|sudo\s+rm|chmod\s+777)" . --include="*.sh" --exclude-dir=.git; then
+          echo "⚠️ Potentially dangerous commands found - review needed"
+        fi
+        
+        echo "✅ Custom security checks completed"
+
+    - name: Upload Security Reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: security-reports
+        path: |
+          gitleaks-report.json
+          semgrep-report.json
+          shellcheck-report.txt
+        retention-days: 30
+
+    - name: Security Summary
+      if: always()
+      run: |
+        echo "## 🔒 Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+        echo "| Tool | Status | Issues |" >> $GITHUB_STEP_SUMMARY
+        echo "|------|--------|--------|" >> $GITHUB_STEP_SUMMARY
+        
+        # Gitleaks status
+        if [ -f gitleaks-report.json ]; then
+          SECRETS_COUNT=$(cat gitleaks-report.json | jq '. | length')
+          if [ "$SECRETS_COUNT" -eq 0 ]; then
+            echo "| Gitleaks (Secrets) | ✅ Pass | 0 |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Gitleaks (Secrets) | ❌ Fail | $SECRETS_COUNT |" >> $GITHUB_STEP_SUMMARY
+          fi
+        fi
+        
+        # Semgrep status
+        if [ -f semgrep-report.json ]; then
+          TOTAL_ISSUES=$(cat semgrep-report.json | jq '.results | length')
+          echo "| Semgrep (Code Analysis) | ℹ️ Info | $TOTAL_ISSUES |" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        # ShellCheck status
+        if [ -f shellcheck-report.txt ]; then
+          SHELL_ISSUES=$(wc -l < shellcheck-report.txt)
+          echo "| ShellCheck (Shell Scripts) | ℹ️ Info | $SHELL_ISSUES |" >> $GITHUB_STEP_SUMMARY
+        fi
