@@ -52,6 +52,9 @@ main() {
     # Mostrar cabeçalho
     show_header
     
+    # Mostrar onde o log será salvo
+    show_log_location
+    
     # Processar parâmetros da linha de comando
     local root_dir=$PWD
     local remaining_args

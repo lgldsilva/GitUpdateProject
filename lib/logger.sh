@@ -108,3 +108,11 @@ info_log() {
     
     _log_base "[INFO]" "${BLUE}" "$message" "$to_console"
 }
+
+# Função para mostrar onde o log está sendo salvo
+show_log_location() {
+    if [ -n "${LOG_FILE:-}" ] && [[ "$LOG_FILE" != *"updateGit.log" ]]; then
+        echo -e "${CYAN}📝 Log será salvo em: $LOG_FILE${RESET}"
+        echo ""
+    fi
+}

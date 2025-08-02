@@ -56,6 +56,13 @@ show_summary() {
     else
         sucesso_log "✓ Concluído com sucesso! Todos os repositórios foram atualizados."
     fi
+    
+    # Mostrar onde o log foi salvo
+    if [ -n "${LOG_FILE:-}" ]; then
+        echo ""
+        echo -e "${CYAN}📝 Log detalhado salvo em: $LOG_FILE${RESET}"
+        echo -e "${CYAN}💡 Use 'cat \"$LOG_FILE\"' para ver detalhes completos${RESET}"
+    fi
 }
 
 # Função para aguardar entrada do usuário
