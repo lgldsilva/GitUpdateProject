@@ -71,7 +71,8 @@ main() {
                     ;;
                 *)
                     if [ -d "$arg" ]; then
-                        root_dir="$arg"
+                        # Converter para caminho absoluto
+                        root_dir="$(cd "$arg" && pwd)"
                     else
                         erro_log "Erro: O diretório '$arg' não existe."
                         erro_log "Use $0 --help para mais informações."
