@@ -41,17 +41,27 @@ wait_for_user
 
 # 3. Demonstrar sistema de segurança
 echo -e "${BLUE}3. 🔒 Sistema de Segurança${RESET}"
-echo "Executando auditoria completa de segurança..."
-./scripts/security-audit.sh
+if [ -f "./scripts/security-audit.sh" ]; then
+    echo "Executando auditoria completa de segurança..."
+    ./scripts/security-audit.sh || echo -e "${YELLOW}⚠️ Auditoria concluída com avisos${RESET}"
+else
+    echo -e "${YELLOW}⚠️ Script de auditoria não encontrado${RESET}"
+fi
 wait_for_user
 
 # 4. Mostrar relatórios gerados
 echo -e "${BLUE}4. 📊 Relatórios de Segurança${RESET}"
-echo "Relatórios gerados na pasta security-reports/:"
-ls -la security-reports/
-echo ""
-echo "Conteúdo do resumo de segurança:"
-cat security-reports/security-summary.md
+if [ -d "security-reports" ] && [ "$(ls -A security-reports/ 2>/dev/null)" ]; then
+    echo "Relatórios gerados na pasta security-reports/:"
+    ls -la security-reports/
+    echo ""
+    if [ -f "security-reports/security-summary.md" ]; then
+        echo "Conteúdo do resumo de segurança:"
+        cat security-reports/security-summary.md
+    fi
+else
+    echo -e "${YELLOW}⚠️ Nenhum relatório gerado ainda. Execute a auditoria primeiro.${RESET}"
+fi
 wait_for_user
 
 # 5. Demonstrar configurações de segurança

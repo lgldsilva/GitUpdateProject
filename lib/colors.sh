@@ -3,8 +3,17 @@
 # Módulo de cores e formatação de texto
 # Este arquivo contém as definições de cores e tags coloridas
 
+# Include guard
+[[ -n "${_COLORS_SH_LOADED:-}" ]] && return 0
+_COLORS_SH_LOADED=1
+
 # Detectar suporte a cores
 supports_colors() {
+    # Respeitar variável de ambiente NO_COLOR (https://no-color.org/)
+    if [[ -n "${NO_COLOR:-}" ]]; then
+        return 1
+    fi
+
     # Windows Git Bash geralmente suporta cores
     if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
         return 0
@@ -23,8 +32,8 @@ supports_colors() {
         esac
     fi
     
-    # Verificar variável de ambiente NO_COLOR
-    [ -z "${NO_COLOR:-}" ]
+    # Terminal não reconhecido — sem cores
+    return 1
 }
 
 # Definir cores com base no suporte

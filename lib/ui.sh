@@ -3,6 +3,10 @@
 # Módulo de interface de usuário
 # Este arquivo contém funções para interação com o usuário
 
+# Include guard
+[[ -n "${_UI_SH_LOADED:-}" ]] && return 0
+_UI_SH_LOADED=1
+
 # Carregar dependências
 source "$(dirname "${BASH_SOURCE[0]}")/colors.sh"
 
@@ -29,7 +33,7 @@ show_help() {
     echo -e "  no diretório especificado. Por padrão, evita solicitações de senha e segue apenas"
     echo -e "  as branches principais (master, main, develop)."
     echo ""
-    exit 0
+    return 0
 }
 
 # Função para mostrar o cabeçalho do sistema

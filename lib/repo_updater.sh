@@ -3,6 +3,10 @@
 # Módulo principal de atualização de repositórios
 # Este arquivo contém a lógica principal para atualizar um repositório Git
 
+# Include guard
+[[ -n "${_REPO_UPDATER_SH_LOADED:-}" ]] && return 0
+_REPO_UPDATER_SH_LOADED=1
+
 # Carregar dependências
 source "$(dirname "${BASH_SOURCE[0]}")/logger.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
@@ -11,7 +15,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/git_operations.sh"
 
 # Função principal para atualizar um repositório Git
 update_git_repo() {
-    local repo_path=$1
+    local repo_path="${1:?ERRO: caminho do repositório não especificado}"
     local repo_name
     repo_name=$(basename "$repo_path")
     local status=0
@@ -28,7 +32,7 @@ update_git_repo() {
     get_repo_info
     
     # Realizar operações git comuns
-    perform_git_operation "Salvando alterações locais (stash)" "git stash save" "Possível problema"
+    perform_git_operation "Salvando alterações locais (stash)" "git stash push" "Possível problema"
     local stash_status=$?
     [ $stash_status -ne 0 ] && status=$stash_status
     
@@ -53,8 +57,6 @@ update_git_repo() {
         if [ -n "$CURRENT_BRANCH" ] && [ "$CURRENT_BRANCH" != "master" ] && [ "$CURRENT_BRANCH" != "main" ] && [ "$CURRENT_BRANCH" != "develop" ]; then
             if update_branch "$remote" "$CURRENT_BRANCH"; then
                 branch_found=true
-                local update_status=$?
-                [ $update_status -ne 0 ] && status=1
             fi
         fi
     done

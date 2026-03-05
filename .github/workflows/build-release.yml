@@ -207,7 +207,7 @@ jobs:
           "description": "Automated Git repository update system",
           "build_platform": "GitHub Actions",
           "components": {
-            "core_scripts": ["updateGit.sh", "updateGit_v2.sh"],
+            "core_scripts": ["updateGit_v2.sh"],
             "library_modules": "lib/",
             "security_tools": ["gitleaks", "semgrep", "shellcheck"],
             "installation": "install.sh",

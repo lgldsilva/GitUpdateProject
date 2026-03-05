@@ -148,7 +148,7 @@ Supports batch updating of multiple repositories with comprehensive logging,
 progress tracking, and security vulnerability scanning.
 
 Components:
-- Core update scripts (updateGit.sh, updateGit_v2.sh)
+- Core update script (updateGit_v2.sh)
 - Modular library system (lib/)
 - Security tools integration (Gitleaks, Semgrep, ShellCheck)
 - Pre-commit hooks and CI/CD pipeline

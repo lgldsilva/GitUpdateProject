@@ -3,13 +3,17 @@
 # Módulo de descoberta de repositórios
 # Este arquivo contém funções para encontrar repositórios Git
 
+# Include guard
+[[ -n "${_REPO_FINDER_SH_LOADED:-}" ]] && return 0
+_REPO_FINDER_SH_LOADED=1
+
 # Carregar dependências
 source "$(dirname "${BASH_SOURCE[0]}")/logger.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
 
 # Função para encontrar repositórios Git
 find_git_repositories() {
-    local root_dir="$1"
+    local root_dir="${1:?ERRO: diretório raiz não especificado}"
     local git_dirs=()
     
     log "Procurando repositórios Git em: $root_dir"
@@ -83,9 +87,9 @@ find_git_repositories() {
             done
         fi
         
-        # Export para uso global
-        export FOUND_GIT_DIRS=("${git_dirs[@]}")
-        export TOTAL_REPOS=${#git_dirs[@]}
+        # Disponibilizar para uso global (sem export — arrays não exportam para subshells)
+        FOUND_GIT_DIRS=("${git_dirs[@]}")
+        TOTAL_REPOS=${#git_dirs[@]}
         
         return 0
     fi

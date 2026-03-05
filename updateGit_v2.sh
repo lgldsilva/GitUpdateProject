@@ -52,22 +52,25 @@ main() {
     # Mostrar cabeçalho
     show_header
     
+    # Executar limpeza de logs antigos (uma única vez)
+    cleanup_old_logs
+    
     # Mostrar onde o log será salvo
     show_log_location
     
     # Processar parâmetros da linha de comando
     local root_dir=$PWD
-    local remaining_args
     
     # Configurar settings baseado nos parâmetros
-    remaining_args=$(configure_settings "$@")
+    configure_settings "$@"
     
-    # Processar argumentos restantes
-    if [ -n "$remaining_args" ]; then
-        for arg in $remaining_args; do
+    # Processar argumentos restantes (REMAINING_ARGS preenchido por configure_settings)
+    if [ ${#REMAINING_ARGS[@]} -gt 0 ]; then
+        for arg in "${REMAINING_ARGS[@]}"; do
             case "$arg" in
                 -h|--help)
                     show_help
+                    exit 0
                     ;;
                 *)
                     if [ -d "$arg" ]; then

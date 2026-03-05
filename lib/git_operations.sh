@@ -3,6 +3,10 @@
 # Módulo de operações de pull/atualização
 # Este arquivo contém as funções principais para atualizar repositórios Git
 
+# Include guard
+[[ -n "${_GIT_OPERATIONS_SH_LOADED:-}" ]] && return 0
+_GIT_OPERATIONS_SH_LOADED=1
+
 # Carregar dependências
 source "$(dirname "${BASH_SOURCE[0]}")/logger.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
@@ -13,7 +17,8 @@ execute_pull() {
     local cmd="$1"         # Comando completo de pull
     local use_timeout="$2" # true ou false
     local item_name="$3"   # Nome do item (ex: "Branch master", "Pull genérico")
-    local output_file="/tmp/git_pull_output.$$"
+    local output_file
+    output_file=$(mktemp /tmp/git_pull_output.XXXXXX)
     local status=0
     
     # Verificar o hash antes do pull
@@ -22,8 +27,7 @@ execute_pull() {
     
     # Executar o comando (com ou sem timeout)
     if [ "$use_timeout" = true ]; then
-        # Capturar saída de erro também para debug
-        timeout 10 "$cmd" > "$output_file" 2>&1 || {
+        timeout 10 bash -c "$cmd" > "$output_file" 2>&1 || {
             status=$?
             if [ $status -eq 124 ]; then
                 aviso_log "  Timeout ao atualizar $item_name (possível solicitação de credenciais)"
@@ -37,8 +41,7 @@ execute_pull() {
             return $status
         }
     else
-        # Capturar saída de erro também para debug
-        $cmd > "$output_file" 2>&1 || {
+        bash -c "$cmd" > "$output_file" 2>&1 || {
             status=$?
             aviso_log "  Falha ao atualizar $item_name ($status)"
             if [ "$DEBUG_MODE" = true ]; then
@@ -71,8 +74,8 @@ execute_pull() {
 
 # Função para atualizar uma branch específica de um remote
 update_branch() {
-    local remote="$1"
-    local branch="$2"
+    local remote="${1:?ERRO: remote não especificado}"
+    local branch="${2:?ERRO: branch não especificada}"
     local local_status=0
     
     # Verificar se o remote é válido
@@ -107,16 +110,13 @@ update_branch() {
 
 # Função para verificar e atualizar uma lista de branches padrão
 check_standard_branches() {
-    local remote="$1"
+    local remote="${1:?ERRO: remote não especificado}"
     local default_branches=("master" "main" "develop")
     local local_branch_found=false
-    local update_status=0
     
     for branch in "${default_branches[@]}"; do
         if update_branch "$remote" "$branch"; then
             local_branch_found=true
-            update_status=$?
-            [ $update_status -ne 0 ] && return 1
         fi
     done
     
@@ -129,8 +129,8 @@ check_standard_branches() {
 
 # Função para realizar o pull genérico
 do_pull() {
-    local remote="$1"
-    local use_timeout="$2"
+    local remote="${1:?ERRO: remote não especificado}"
+    local use_timeout="${2:-true}"
     
     # Verificar se o remote é válido
     if ! check_remote_valid "$remote"; then

@@ -3,6 +3,10 @@
 # Módulo de logging
 # Este arquivo contém todas as funções relacionadas ao sistema de logs
 
+# Include guard
+[[ -n "${_LOGGER_SH_LOADED:-}" ]] && return 0
+_LOGGER_SH_LOADED=1
+
 # Carregar dependências
 source "$(dirname "${BASH_SOURCE[0]}")/colors.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/config.sh"

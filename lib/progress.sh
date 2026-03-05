@@ -3,6 +3,10 @@
 # Módulo de barra de progresso
 # Este arquivo contém as funções para exibir progresso das operações
 
+# Include guard
+[[ -n "${_PROGRESS_SH_LOADED:-}" ]] && return 0
+_PROGRESS_SH_LOADED=1
+
 # Carregar dependências
 source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
 

@@ -3,6 +3,10 @@
 # Módulo de configurações globais
 # Este arquivo contém todas as variáveis de configuração do sistema
 
+# Include guard
+[[ -n "${_CONFIG_SH_LOADED:-}" ]] && return 0
+_CONFIG_SH_LOADED=1
+
 # Carregar cores
 source "$(dirname "${BASH_SOURCE[0]}")/colors.sh"
 
@@ -52,15 +56,14 @@ cleanup_old_logs() {
     fi
 }
 
-# Executar limpeza de logs antigos
-cleanup_old_logs
-
 # Configurações Git
 export GIT_TERMINAL_PROMPT=0
 export GIT_ASKPASS="/bin/echo"
 
 # Função para configurar as variáveis baseado nos parâmetros
+# Argumentos não processados são retornados via REMAINING_ARGS (array global)
 configure_settings() {
+    REMAINING_ARGS=()
     while [ $# -gt 0 ]; do
         case "$1" in
             -d|--debug)
@@ -80,9 +83,8 @@ configure_settings() {
                 shift
                 ;;
             *)
-                # Retornar argumentos não processados
-                echo "$@"
-                return 0
+                REMAINING_ARGS+=("$1")
+                shift
                 ;;
         esac
     done

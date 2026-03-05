@@ -3,13 +3,17 @@
 # Módulo de utilitários Git
 # Este arquivo contém funções auxiliares para operações Git
 
+# Include guard
+[[ -n "${_GIT_UTILS_SH_LOADED:-}" ]] && return 0
+_GIT_UTILS_SH_LOADED=1
+
 # Carregar dependências
 source "$(dirname "${BASH_SOURCE[0]}")/logger.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
 
 # Função para verificar se um remote é válido
 check_remote_valid() {
-    local remote="$1"
+    local remote="${1:?ERRO: remote não especificado}"
     if git ls-remote --exit-code "$remote" &>/dev/null; then
         debug_log "  Remote '$remote' está acessível"
         return 0
@@ -24,10 +28,11 @@ run_git_command() {
     local cmd="$1"
     local error_msg="$2"
     local debug_error="$3"
-    local output_file="/tmp/git_command_output.$$"
+    local output_file
+    output_file=$(mktemp /tmp/git_command_output.XXXXXX)
     local status=0
     
-    $cmd > "$output_file" 2>&1 || {
+    bash -c "$cmd" > "$output_file" 2>&1 || {
         status=$?
         aviso_log "$error_msg ($status)"
         if [ "$DEBUG_MODE" = true ] && [ "$debug_error" = true ]; then
@@ -43,8 +48,8 @@ run_git_command() {
 
 # Função para verificar se uma branch remota existe
 check_branch_exists() {
-    local remote="$1"
-    local branch="$2"
+    local remote="${1:?ERRO: remote não especificado}"
+    local branch="${2:?ERRO: branch não especificada}"
     
     if git ls-remote --exit-code --heads "$remote" "$branch" &>/dev/null; then
         return 0  # Branch existe
@@ -80,8 +85,8 @@ get_repo_info() {
     fi
     
     # Retornar informações via variáveis globais
-    export CURRENT_BRANCH="$current_branch"
-    export REPO_REMOTES=("${remotes[@]}")
+    CURRENT_BRANCH="$current_branch"
+    REPO_REMOTES=("${remotes[@]}")
 }
 
 # Função para realizar operações git comuns
