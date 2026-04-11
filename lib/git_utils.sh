@@ -11,14 +11,14 @@ _GIT_UTILS_SH_LOADED=1
 source "$(dirname "${BASH_SOURCE[0]}")/logger.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
 
-# Função para verificar se um remote é válido
+# Função para verificar se um remote é válido (verificação local, sem rede)
 check_remote_valid() {
     local remote="${1:?ERRO: remote não especificado}"
-    if git ls-remote --exit-code "$remote" &>/dev/null; then
-        debug_log "  Remote '$remote' está acessível"
+    if git remote get-url "$remote" &>/dev/null; then
+        debug_log "  Remote '$remote' está configurado"
         return 0
     else
-        aviso_log "  Remote '$remote' não está acessível"
+        aviso_log "  Remote '$remote' não está configurado"
         return 1
     fi
 }
@@ -46,13 +46,13 @@ run_git_command() {
     return 0
 }
 
-# Função para verificar se uma branch remota existe
+# Função para verificar se uma branch remota existe (usa refs locais após fetch)
 check_branch_exists() {
     local remote="${1:?ERRO: remote não especificado}"
     local branch="${2:?ERRO: branch não especificada}"
     
-    if git ls-remote --exit-code --heads "$remote" "$branch" &>/dev/null; then
-        return 0  # Branch existe
+    if git show-ref --verify --quiet "refs/remotes/$remote/$branch" 2>/dev/null; then
+        return 0  # Branch existe localmente (após fetch)
     fi
     return 1  # Branch não existe
 }
@@ -77,11 +77,6 @@ get_repo_info() {
         aviso_log "  Nenhum remote encontrado"
     else
         debug_log "  Remotes encontrados: ${remotes[*]}"
-        
-        # Verificar quais remotes são acessíveis
-        for remote in "${remotes[@]}"; do
-            check_remote_valid "$remote"
-        done
     fi
     
     # Retornar informações via variáveis globais

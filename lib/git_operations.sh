@@ -17,13 +17,14 @@ execute_pull() {
     local cmd="$1"         # Comando completo de pull
     local use_timeout="$2" # true ou false
     local item_name="$3"   # Nome do item (ex: "Branch master", "Pull genérico")
+    local check_ref="${4:-HEAD}"  # Ref para detectar mudanças (padrão: HEAD)
     local output_file
     output_file=$(mktemp /tmp/git_pull_output.XXXXXX)
     local status=0
     
     # Verificar o hash antes do pull
     local before_hash
-    before_hash=$(git rev-parse HEAD 2>/dev/null)
+    before_hash=$(git rev-parse "$check_ref" 2>/dev/null)
     
     # Executar o comando (com ou sem timeout)
     if [ "$use_timeout" = true ]; then
@@ -55,7 +56,7 @@ execute_pull() {
     # Se chegamos aqui, o comando foi bem sucedido
     # Verificar mudanças
     local after_hash
-    after_hash=$(git rev-parse HEAD 2>/dev/null)
+    after_hash=$(git rev-parse "$check_ref" 2>/dev/null)
     if [ "$before_hash" != "$after_hash" ]; then
         # Verificar quantos commits foram trazidos
         local num_commits
@@ -78,29 +79,41 @@ update_branch() {
     local branch="${2:?ERRO: branch não especificada}"
     local local_status=0
     
-    # Verificar se o remote é válido
+    # Verificar se o remote é válido (verificação local)
     if ! check_remote_valid "$remote"; then
         return 1
     fi
     
-    # Verificar se a branch remota existe
+    # Verificar se a branch remota existe (usa refs locais, sem rede)
     if check_branch_exists "$remote" "$branch"; then
         log "  Atualizando branch $branch do remote $remote"
         
-        # Montar o comando de pull
         local pull_cmd=""
         local item_name="Branch $branch"
+        local check_ref="HEAD"
         
-        # Se a opção de força estiver ativada
-        if [ "$FORCE_PULL" = true ]; then
-            pull_cmd="git pull --force $remote $branch:$branch"
-            item_name="Branch $branch (forçado)"
+        if [ "$CURRENT_BRANCH" = "$branch" ]; then
+            # Branch atual: usar merge para evitar problemas com refspecs em branches checadas
+            if [ "$FORCE_PULL" = true ]; then
+                pull_cmd="git reset --hard $remote/$branch"
+                item_name="Branch $branch (forçado)"
+            else
+                pull_cmd="git merge --ff-only $remote/$branch"
+            fi
+            check_ref="HEAD"
         else
-            pull_cmd="git pull $remote $branch:$branch"
+            # Branch não checada: atualizar ponteiro local usando refs já buscados (sem rede)
+            if [ "$FORCE_PULL" = true ]; then
+                pull_cmd="git branch -f $branch $remote/$branch"
+                item_name="Branch $branch (forçado)"
+            else
+                pull_cmd="git fetch . refs/remotes/$remote/$branch:refs/heads/$branch"
+            fi
+            check_ref="refs/heads/$branch"
         fi
         
-        # Executar o pull com ou sem timeout, dependendo da configuração
-        execute_pull "$pull_cmd" "$SKIP_AUTH" "$item_name"
+        # Operações locais não precisam de timeout
+        execute_pull "$pull_cmd" false "$item_name" "$check_ref"
         local_status=$?
         
         return $local_status
