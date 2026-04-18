@@ -12,6 +12,8 @@ source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
 
 # Função para desenhar a barra de progresso
 draw_progress_bar() {
+    # Silenciar em modo JSON para não poluir stdout
+    [ "${JSON_OUTPUT:-false}" = true ] && return
     # Se não temos repositórios, não exibir a barra
     if [ "$TOTAL_REPOS" -eq 0 ]; then
         return
@@ -29,13 +31,16 @@ draw_progress_bar() {
     fi
     
     local empty=$((PROGRESS_BAR_WIDTH - filled))
-    
-    # Construir a barra de progresso
+
+    # Construir a barra de progresso.
+    # IMPORTANTE: usar `local i` aqui — caso contrário clobbera o `i` de loops
+    # de chamadores (main loop em updateGit_v2.sh), causando loop infinito.
     local progress_bar=""
+    local i
     for ((i=0; i<filled; i++)); do
         progress_bar="${progress_bar}${PROGRESS_BAR_CHAR}"
     done
-    
+
     for ((i=0; i<empty; i++)); do
         progress_bar="${progress_bar}${EMPTY_BAR_CHAR}"
     done
@@ -67,6 +72,7 @@ reset_progress() {
 
 # Função para finalizar a barra de progresso
 finish_progress_bar() {
+    [ "${JSON_OUTPUT:-false}" = true ] && return
     if [ "$TOTAL_REPOS" -gt 0 ]; then
         echo  # Nova linha após a barra de progresso
     fi

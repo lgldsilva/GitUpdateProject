@@ -93,8 +93,7 @@ check_dependencies() {
     log "Verificando dependências..."
     
     local missing_deps=()
-    local required_cmds=("curl")
-    
+
     # Verificar curl (essencial)
     if ! command -v curl &> /dev/null; then
         missing_deps+=("curl")

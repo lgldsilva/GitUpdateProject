@@ -1,45 +1,69 @@
 #!/bin/bash
 
-# GitUpdate System v2.0 - Sistema Modular de Atualização de Repositórios Git
-# Script principal que orquestra todos os módulos do sistema
+# GitUpdate System v2.1 - Sistema Modular de Atualização de Repositórios Git
+# Script principal que orquestra todos os módulos do sistema.
 
-# Definir diretório base do sistema
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Resolver diretório base seguindo symlinks (cross-platform)
+_resolve_script_dir() {
+    local src="${BASH_SOURCE[0]}"
+    local i=0
+    while [ -L "$src" ] && [ $i -lt 10 ]; do
+        local target
+        target="$(readlink "$src")"
+        [[ "$target" != /* ]] && target="$(dirname "$src")/$target"
+        src="$target"
+        i=$((i + 1))
+    done
+    (cd "$(dirname "$src")" && pwd)
+}
 
-# Se o script está sendo executado de /usr/local/bin (via wrapper), 
-# redirecionar para o diretório de instalação real
-if [[ "$SCRIPT_DIR" == "/usr/local/bin" ]]; then
-    SCRIPT_DIR="/opt/GitUpdateProject"
-    # Debug: informar sobre o redirecionamento
-    [[ "${DEBUG:-}" == "1" ]] && echo "🔄 Redirecionado de /usr/local/bin para $SCRIPT_DIR"
-fi
-
+SCRIPT_DIR="$(_resolve_script_dir)"
 LIB_DIR="$SCRIPT_DIR/lib"
 
-# Verificar se o diretório lib existe, caso contrário tentar localizar
-if [[ ! -d "$LIB_DIR" ]]; then
-    # Tentar encontrar o diretório lib em locais comuns
-    for possible_dir in "/opt/GitUpdateProject" "$(dirname "$0")" "$(pwd)"; do
-        if [[ -d "$possible_dir/lib" ]]; then
+# Fallback: buscar lib/ em locais comuns
+if [ ! -d "$LIB_DIR" ]; then
+    for possible_dir in \
+        "/opt/GitUpdateProject" \
+        "/usr/local/share/GitUpdateProject" \
+        "/opt/homebrew/share/GitUpdateProject" \
+        "$HOME/.local/share/GitUpdateProject" \
+        "$(dirname "$0")" \
+        "$(pwd)"; do
+        if [ -d "$possible_dir/lib" ]; then
             SCRIPT_DIR="$possible_dir"
             LIB_DIR="$SCRIPT_DIR/lib"
+            [[ "${DEBUG:-}" == "1" ]] && echo "🔄 Usando instalação em $SCRIPT_DIR"
             break
         fi
     done
 fi
 
-# Verificação final - se ainda não encontrou as bibliotecas, mostrar erro
-if [[ ! -d "$LIB_DIR" ]]; then
-    echo "❌ ERRO: Não foi possível encontrar o diretório de bibliotecas (lib/)" >&2
-    echo "   Procurado em: $LIB_DIR" >&2
-    echo "   Certifique-se de que o GitUpdateProject foi instalado corretamente." >&2
+if [ ! -d "$LIB_DIR" ]; then
+    echo "❌ ERRO: diretório lib/ não encontrado ($LIB_DIR)" >&2
     exit 1
 fi
 
-# Carregar todos os módulos necessários
-for lib_file in "colors.sh" "config.sh" "logger.sh" "progress.sh" "ui.sh" "repo_finder.sh" "repo_updater.sh"; do
+# Carregar módulos (ordem importa: dependências antes)
+for lib_file in \
+        colors.sh \
+        config.sh \
+        logger.sh \
+        progress.sh \
+        ui.sh \
+        excludes.sh \
+        retry.sh \
+        status.sh \
+        git_utils.sh \
+        git_operations.sh \
+        hooks.sh \
+        parallel.sh \
+        json_report.sh \
+        notify.sh \
+        repo_finder.sh \
+        repo_updater.sh; do
     lib_path="$LIB_DIR/$lib_file"
-    if [[ -f "$lib_path" ]]; then
+    if [ -f "$lib_path" ]; then
+        # shellcheck source=/dev/null
         source "$lib_path"
     else
         echo "❌ ERRO: Biblioteca não encontrada: $lib_path" >&2
@@ -47,24 +71,29 @@ for lib_file in "colors.sh" "config.sh" "logger.sh" "progress.sh" "ui.sh" "repo_
     fi
 done
 
-# Função principal do sistema
 main() {
-    # Mostrar cabeçalho
-    show_header
-    
-    # Executar limpeza de logs antigos (uma única vez)
-    cleanup_old_logs
-    
-    # Mostrar onde o log será salvo
-    show_log_location
-    
-    # Processar parâmetros da linha de comando
-    local root_dir=$PWD
-    
-    # Configurar settings baseado nos parâmetros
+    # Carregar config file antes do parse CLI (CLI sobrescreve)
+    load_config_file
+
+    # Processar flags
     configure_settings "$@"
-    
-    # Processar argumentos restantes (REMAINING_ARGS preenchido por configure_settings)
+
+    # Em modo JSON, desabilitar saída colorida/progresso e header
+    local json_mode=false
+    [ "${JSON_OUTPUT:-false}" = true ] && json_mode=true
+
+    if [ "$json_mode" != true ]; then
+        show_header
+    fi
+
+    cleanup_old_logs
+
+    if [ "$json_mode" != true ]; then
+        show_log_location
+    fi
+
+    # Processar argumentos posicionais
+    local root_dir="$PWD"
     if [ ${#REMAINING_ARGS[@]} -gt 0 ]; then
         for arg in "${REMAINING_ARGS[@]}"; do
             case "$arg" in
@@ -74,134 +103,125 @@ main() {
                     ;;
                 *)
                     if [ -d "$arg" ]; then
-                        # Converter para caminho absoluto
                         root_dir="$(cd "$arg" && pwd)"
                     else
-                        erro_log "Erro: O diretório '$arg' não existe."
-                        erro_log "Use $0 --help para mais informações."
+                        erro_log "Diretório '$arg' não existe."
                         exit 1
                     fi
                     ;;
             esac
         done
     fi
-    
-    # Log inicial
-    log "Iniciando GitUpdate System v2.0"
-    log "Data de execução: $(date)"
+
+    log "Iniciando GitUpdate System v2.1"
     log "Diretório de trabalho: $root_dir"
-    
-    # Informar sobre configurações ativas
-    if [ "$DEBUG_MODE" = true ]; then
-        log "Modo de depuração: ATIVADO"
-    fi
-    
-    if [ "$FOLLOW_SYMLINKS" = true ]; then
-        log "Seguir links simbólicos: ATIVADO"
-    fi
-    
-    if [ "$FORCE_PULL" = true ]; then
-        log "Pull forçado: ATIVADO (git pull --force)"
-    fi
-    
-    # Informar sobre o modo de autenticação
-    if [ "$SKIP_AUTH" = true ]; then
-        log "Modo sem autenticação: repositórios que solicitam senha serão ignorados (use -a para permitir autenticação)"
-    else
-        log "Modo com autenticação: o Git pode solicitar credenciais para repositórios protegidos"
-    fi
-    
-    # Verificar se o diretório raiz é um link simbólico
+    local start_ts
+    start_ts=$(date '+%Y-%m-%dT%H:%M:%S%z' 2>/dev/null || date)
+
+    # Resumo de flags ativas
+    [ "$DEBUG_MODE" = true ]       && log "Modo debug: ATIVO"
+    [ "$DRY_RUN" = true ]          && aviso_log "Modo DRY-RUN: nenhuma alteração será aplicada"
+    [ "$FORCE_PULL" = true ]       && aviso_log "Modo FORCE: alterações locais serão descartadas"
+    [ "$FOLLOW_SYMLINKS" = true ]  && log "Seguindo symlinks"
+    [ "$PARALLEL_JOBS" -gt 1 ]     && log "Paralelismo: $PARALLEL_JOBS workers"
+    [ "$DO_SUBMODULES" = true ]    && log "Submódulos: ATIVO"
+    [ "$DO_LFS" = true ]           && log "LFS: ATIVO"
+    [ "$DO_PUSH" = true ]          && log "Push: ATIVO"
+    [ "$DO_GC" = true ]            && log "GC: ATIVO"
+    [ "$RUN_HOOKS" = true ]        && log "Hooks: ATIVO"
+    [ ${#EXCLUDE_PATTERNS[@]} -gt 0 ] && log "Exclusões (${#EXCLUDE_PATTERNS[@]}): ${EXCLUDE_PATTERNS[*]}"
+
+    # Resolver symlinks do root_dir se aplicável
     if [ -L "$root_dir" ]; then
         local link_target
-        # Função cross-platform para readlink -f
-        if command -v readlink >/dev/null 2>&1; then
-            if readlink -f "$root_dir" >/dev/null 2>&1; then
-                # Linux/GNU readlink
-                link_target=$(readlink -f "$root_dir")
-            elif command -v realpath >/dev/null 2>&1; then
-                # macOS/BSD fallback para realpath
-                link_target=$(realpath "$root_dir")
-            else
-                # Fallback manual para macOS
-                link_target=$(cd "$root_dir" && pwd -P)
-            fi
-        else
-            # Último fallback
-            link_target=$(cd "$root_dir" && pwd -P)
-        fi
-        log "Diretório raiz é um link simbólico apontando para: $link_target"
-        
-        if [ "$FOLLOW_SYMLINKS" = true ]; then
-            log "Links simbólicos serão seguidos durante a busca por repositórios"
-        else
-            log "Links simbólicos NÃO serão seguidos (use -L para seguir links simbólicos)"
-        fi
+        link_target=$(readlink -f "$root_dir" 2>/dev/null \
+            || realpath "$root_dir" 2>/dev/null \
+            || (cd "$root_dir" && pwd -P))
+        log "Diretório raiz é symlink → $link_target"
     fi
-    
-    # Salvar o diretório inicial
-    local initial_dir=$PWD
-    
-    # Contadores
+
+    local initial_dir="$PWD"
     local total_repos=0
     local updated_repos=0
     local failed_repos=0
-    
-    # Buscar repositórios Git
+
     if find_git_repositories "$root_dir"; then
-        # Inicializar a barra de progresso
         draw_progress_bar
-        
-        # Processar cada repositório encontrado
-        for git_dir in "${FOUND_GIT_DIRS[@]}"; do
-            ((total_repos++))
-            
-            local repo_dir
-            repo_dir="$(dirname "$git_dir")"
-            local relative_path="${repo_dir#"$root_dir"/}"
-            
-            log "Encontrado repositório Git: $relative_path"
-            
-            # Entrar no diretório do repositório
-            if cd "$repo_dir"; then
-                # Atualizar o repositório
-                if update_git_repo "$repo_dir"; then
+
+        if [ "$PARALLEL_JOBS" -gt 1 ]; then
+            # Modo paralelo: roda workers, coleta statuses, imprime logs na ordem
+            run_parallel _run_one_repo "${FOUND_GIT_DIRS[@]}"
+            local i
+            for ((i=0; i<${#FOUND_GIT_DIRS[@]}; i++)); do
+                ((total_repos++))
+                local s="${PARALLEL_STATUSES[i]:-1}"
+                if [ "$s" -eq 0 ]; then
                     ((updated_repos++))
+                    report_repo "$(dirname "${FOUND_GIT_DIRS[i]}")" "ok" "" "" ""
                 else
                     ((failed_repos++))
+                    local path
+                    path="$(dirname "${FOUND_GIT_DIRS[i]}")"
+                    record_failure "$path" "status=$s"
+                    report_repo "$path" "failed" "status=$s" "" ""
                 fi
-            else
-                erro_log "Não foi possível acessar o diretório $repo_dir"
-                ((failed_repos++))
-            fi
-            
-            # Atualizar progresso
-            increment_progress
-        done
-        
-        # Finalizar barra de progresso
+                increment_progress
+            done
+        else
+            # Sequencial
+            for git_dir in "${FOUND_GIT_DIRS[@]}"; do
+                ((total_repos++))
+                local repo_dir="${git_dir%/.git}"
+                [ "$repo_dir" = "$git_dir" ] && repo_dir="$(dirname "$git_dir")"
+                local rel="${repo_dir#"$root_dir"/}"
+                log "Encontrado: $rel"
+
+                if update_git_repo "$repo_dir"; then
+                    ((updated_repos++))
+                    report_repo "$repo_dir" "ok" "" "${LAST_PRE_STATUS:-}" "${LAST_POST_STATUS:-}"
+                else
+                    ((failed_repos++))
+                    record_failure "$rel" "ver log"
+                    report_repo "$repo_dir" "failed" "ver log" "${LAST_PRE_STATUS:-}" "${LAST_POST_STATUS:-}"
+                fi
+                increment_progress
+            done
+        fi
+
         finish_progress_bar
-    else
-        # Nenhum repositório encontrado
-        total_repos=0
     fi
-    
-    # Voltar para o diretório inicial
+
     cd "$initial_dir" || exit
-    
-    # Mostrar resumo da execução
-    show_summary "$total_repos" "$updated_repos" "$failed_repos"
-    
-    # Aguardar entrada do usuário
-    wait_for_user
-    
-    # Código de saída baseado nos resultados
-    if [ $failed_repos -gt 0 ]; then
-        exit 1
+
+    local end_ts
+    end_ts=$(date '+%Y-%m-%dT%H:%M:%S%z' 2>/dev/null || date)
+
+    if [ "$json_mode" = true ]; then
+        emit_json_report "$total_repos" "$updated_repos" "$failed_repos" "$start_ts" "$end_ts"
     else
-        exit 0
+        show_summary "$total_repos" "$updated_repos" "$failed_repos"
     fi
+
+    notify_completion "$total_repos" "$updated_repos" "$failed_repos"
+
+    if [ "$json_mode" != true ]; then
+        wait_for_user
+    fi
+
+    [ $failed_repos -gt 0 ] && exit 1
+    exit 0
 }
 
-# Executar função principal com todos os argumentos
+# Wrapper usado pelo runner paralelo (recebe path do .git, executa update).
+_run_one_repo() {
+    local git_dir="$1"
+    local repo_dir
+    if [ -d "$git_dir" ]; then
+        repo_dir="$(dirname "$git_dir")"
+    else
+        repo_dir="$(dirname "$git_dir")"
+    fi
+    update_git_repo "$repo_dir"
+}
+
 main "$@"

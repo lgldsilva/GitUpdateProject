@@ -23,26 +23,29 @@ check_remote_valid() {
     fi
 }
 
-# Função para executar comando git com tratamento de erro
+# Função para executar comando git com tratamento de erro.
+# Uso: run_git_command "<error_msg>" <debug_bool> -- <cmd...>
 run_git_command() {
-    local cmd="$1"
-    local error_msg="$2"
-    local debug_error="$3"
+    local error_msg="$1"
+    local debug_error="$2"
+    shift 2
+    # Aceitar um separador opcional "--" antes do comando
+    [ "${1:-}" = "--" ] && shift
+
     local output_file
-    output_file=$(mktemp /tmp/git_command_output.XXXXXX)
+    output_file=$(mktemp -t git_command_output.XXXXXX)
+    trap 'rm -f "$output_file"' RETURN
     local status=0
-    
-    bash -c "$cmd" > "$output_file" 2>&1 || {
+
+    "$@" > "$output_file" 2>&1 || {
         status=$?
         aviso_log "$error_msg ($status)"
         if [ "$DEBUG_MODE" = true ] && [ "$debug_error" = true ]; then
             debug_log "  Detalhes do erro: $(head -5 "$output_file")"
         fi
-        rm -f "$output_file"
         return $status
     }
-    
-    rm -f "$output_file"
+
     return 0
 }
 
@@ -79,21 +82,24 @@ get_repo_info() {
         debug_log "  Remotes encontrados: ${remotes[*]}"
     fi
     
-    # Retornar informações via variáveis globais
+    # Retornar informações via variáveis globais consumidas por outros módulos
+    # shellcheck disable=SC2034
     CURRENT_BRANCH="$current_branch"
+    # shellcheck disable=SC2034
     REPO_REMOTES=("${remotes[@]}")
 }
 
-# Função para realizar operações git comuns
+# Função para realizar operações git comuns.
+# Uso: perform_git_operation "<operação>" "<tipo_erro>" <cmd...>
 perform_git_operation() {
     local operation="$1"
-    local command="$2"
-    local error_type="$3"  # "erro" ou "aviso"
+    local error_type="$2"  # "Erro", "Aviso", "Falha", etc.
+    shift 2
     local cmd_status=0
-    
+
     log "  $operation"
-    run_git_command "$command" "  $error_type ao $operation" true
+    run_git_command "  $error_type ao $operation" true -- "$@"
     cmd_status=$?
-    
+
     return $cmd_status
 }

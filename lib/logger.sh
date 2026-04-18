@@ -37,9 +37,14 @@ _log_base() {
         plain_message="${tag} ${message}"
     fi
     
-    # Exibir no console se solicitado
+    # Exibir no console se solicitado. Em modo JSON, redirecionar para stderr
+    # para não poluir o payload JSON em stdout.
     if [ "$to_console" = true ]; then
-        echo -e "${colored_message}"
+        if [ "${JSON_OUTPUT:-false}" = true ]; then
+            echo -e "${colored_message}" >&2
+        else
+            echo -e "${colored_message}"
+        fi
     fi
     
     # Sempre salvar no arquivo de log

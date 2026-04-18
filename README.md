@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/security-A%2B-brightgreen" alt="Security Score">
   <img src="https://img.shields.io/badge/platform-Linux%20|%20macOS-blue" alt="Platform Support">
   <img src="https://img.shields.io/badge/shell-bash-green" alt="Shell">
-  <img src="https://img.shields.io/github/workflow/status/lgldsilva/GitUpdateProject/Security%20Scan%20Pipeline" alt="CI/CD Status">
+  <img src="https://img.shields.io/github/actions/workflow/status/lgldsilva/GitUpdateProject/security-scan.yml?branch=master" alt="CI/CD Status">
 </p>
 
 **Automated Git repository update system with comprehensive security pipeline**
@@ -13,13 +13,19 @@ GitUpdateProject é uma solução completa para automação de atualizações de
 
 ## ✨ Características Principais
 
-- 🔒 **Pipeline de Segurança Completo**: Integração com Gitleaks, Semgrep e ShellCheck
-- 🚀 **Automação Inteligente**: Detecção e atualização automática de repositórios Git
-- 🌐 **Suporte Multi-plataforma**: Linux (Arch, Ubuntu, Fedora, etc.) e macOS
-- 🛡️ **Pre-commit Hooks**: Validação de segurança antes de cada commit
-- 📊 **Sistema de Pontuação**: Score A+ de segurança com relatórios detalhados
-- 🏗️ **Arquitetura Modular**: Código organizado e reutilizável
-- ⚡ **CI/CD Integrado**: Pipeline GitHub Actions automatizado
+- 🚀 **Detecção recursiva**: encontra todos os repositórios Git (inclusive worktrees) em um diretório
+- ⚡ **Execução paralela**: até N workers simultâneos (`--jobs N`)
+- 🔀 **Suporte a submódulos, LFS, push e gc**: operações opcionais via flags
+- 🎯 **Preserva trabalho local**: stash automático antes do pull, pop ao final (ou `--force` para descartar)
+- 🧪 **Dry-run**: `--dry-run` mostra o que seria feito sem executar
+- 📁 **Exclusões**: `--exclude PATTERN` ou arquivo `.gitupdateignore`
+- 🪝 **Hooks por repo**: `.gitupdate-hook` executado após update bem-sucedido
+- 📊 **Saída JSON**: `--json` para integração com pipelines
+- 🔔 **Notificações**: desktop (`--notify`) e webhook (`--webhook URL`)
+- 🌐 **Cross-platform**: Linux, macOS (com/sem coreutils) e Windows (Git Bash)
+- 🔒 **Pipeline de segurança**: Gitleaks, Semgrep e ShellCheck integrados
+- 🏗️ **Arquitetura modular**: 14 módulos shell reutilizáveis
+- 🧪 **Suite de testes `bats`** para regressões
 
 ## 📦 Instalação Rápida
 
@@ -67,17 +73,91 @@ pipx install semgrep
 
 ## 🚀 Uso
 
-### Atualização Básica de Repositórios
+### Uso Básico
 
 ```bash
 # Atualizar todos os repositórios em um diretório
-./updateGit_v2.sh /home/user/projects
+./updateGit_v2.sh ~/Projetos
 
-# Modo debug com logs detalhados
-./updateGit_v2.sh -d /home/user/projects
+# Modo debug
+./updateGit_v2.sh -d ~/Projetos
 
-# Forçar pull mesmo com conflitos
-./updateGit_v2.sh -f /home/user/projects
+# Dry-run (ver o que seria feito)
+./updateGit_v2.sh --dry-run ~/Projetos
+
+# Paralelismo: 8 workers + submódulos + LFS
+./updateGit_v2.sh -j 8 --submodules --lfs ~/Projetos
+
+# Push de commits locais não enviados após o pull
+./updateGit_v2.sh --push ~/Projetos
+
+# Forçar pull descartando alterações locais
+./updateGit_v2.sh -f ~/Projetos
+
+# Saída JSON para pipelines
+./updateGit_v2.sh --json ~/Projetos > status.json
+```
+
+### Opções Completas
+
+| Flag | Descrição |
+|------|-----------|
+| `-d, --debug` | Modo de depuração |
+| `-L, --follow-symlinks` | Segue symlinks na busca |
+| `-a, --allow-auth` | Permite prompt de credenciais |
+| `-f, --force` | Pull forçado (reset --hard) |
+| `-n, --dry-run` | Mostra ações sem executar |
+| `-j, --jobs N` | N workers paralelos |
+| `--timeout SEC` | Timeout de ops de rede (default 10s) |
+| `--retries N` | Retentativas em falhas de rede |
+| `--submodules` | `git submodule update --init --recursive` |
+| `--lfs` | `git lfs pull` (se repo usa LFS) |
+| `--push` | Push após pull bem-sucedido |
+| `--gc` | `git gc --auto` ao final |
+| `--hooks` | Executa `.gitupdate-hook` no repo (se presente) |
+| `-x, --exclude PAT` | Exclui repos (glob; repetível) |
+| `--only-failed` | Exibe só os que falharam |
+| `--only-dirty` | Processa só repos com alterações locais |
+| `--json` | Saída final em JSON |
+| `--notify` | Notificação desktop ao fim |
+| `--webhook URL` | POST JSON ao fim |
+
+### Config File
+
+Defaults persistentes em `~/.config/gitupdate/config`:
+
+```ini
+# Comentários começam com #
+DRY_RUN=false
+PARALLEL_JOBS=4
+NETWORK_TIMEOUT=15
+MAX_RETRIES=3
+DO_SUBMODULES=true
+
+# Exclusões (pode repetir)
+EXCLUDE_PATTERN=node_modules
+EXCLUDE_PATTERN=vendor/*
+EXCLUDE_PATTERN=*.bak
+```
+
+### `.gitupdateignore`
+
+Arquivo no diretório raiz com padrões (formato glob, um por linha):
+
+```
+node_modules
+archive/*
+*-backup
+```
+
+### Hooks por Repositório
+
+Se um repo tiver `.gitupdate-hook` (ou `.gitupdate-hook.sh`) executável e você rodar com `--hooks`, o script é executado após o pull bem-sucedido:
+
+```bash
+#!/bin/bash
+# Exemplo: .gitupdate-hook em projeto Node.js
+npm install --silent
 ```
 
 ### Auditoria de Segurança
@@ -117,24 +197,39 @@ O projeto inclui um sistema de pontuação que avalia:
 
 ```
 GitUpdateProject/
-├── lib/                     # Módulos centralizados
-│   ├── colors.sh           # Sistema de cores
-│   ├── config.sh           # Configurações globais
-│   ├── git_operations.sh   # Operações Git core
-│   ├── git_utils.sh        # Utilitários Git
-│   ├── logger.sh           # Sistema de logging
-│   ├── progress.sh         # Barras de progresso
-│   ├── repo_finder.sh      # Detecção de repositórios
-│   ├── repo_updater.sh     # Lógica de atualização
-│   ├── security_utils.sh   # Utilitários de segurança
-│   └── ui.sh               # Interface do usuário
-├── scripts/                # Scripts de automação
-│   ├── pre-commit-security.sh  # Hook pre-commit
-│   ├── security-audit.sh       # Auditoria completa
-│   └── setup-security.sh       # Configuração inicial
-├── .github/workflows/      # CI/CD Pipeline
-│   └── security-scan.yml   # GitHub Actions
-└── security-reports/       # Relatórios de segurança
+├── lib/                          # Módulos centralizados
+│   ├── colors.sh                 # Cores e formatação
+│   ├── config.sh                 # Config global + parser CLI + config file
+│   ├── excludes.sh               # Padrões de exclusão + .gitupdateignore
+│   ├── git_operations.sh         # Pull/fetch/merge/submodule/LFS/push/gc
+│   ├── git_utils.sh              # Utilitários Git
+│   ├── hooks.sh                  # Hooks pós-update por repo
+│   ├── json_report.sh            # Saída JSON estruturada
+│   ├── logger.sh                 # Sistema de logging
+│   ├── notify.sh                 # Notificações (desktop + webhook)
+│   ├── parallel.sh               # Runner paralelo (--jobs N)
+│   ├── progress.sh               # Barra de progresso
+│   ├── repo_finder.sh            # Detecção de repos (dirs + worktrees)
+│   ├── repo_updater.sh           # Lógica de atualização de 1 repo
+│   ├── retry.sh                  # Retry com backoff exponencial
+│   ├── security_utils.sh         # Utilitários de segurança
+│   ├── status.sh                 # Detecção de dirty/ahead/behind
+│   └── ui.sh                     # Interface e help
+├── scripts/                      # Scripts de automação
+│   ├── cleanup-scattered-logs.sh # Limpeza de logs antigos
+│   ├── pre-commit-security.sh    # Hook pre-commit
+│   ├── security-audit.sh         # Auditoria completa
+│   └── setup-security.sh         # Configuração inicial
+├── tests/                        # Suite bats
+│   ├── config.bats
+│   ├── excludes.bats
+│   ├── helper.bash
+│   ├── retry.bats
+│   └── status.bats
+├── .github/workflows/            # CI/CD Pipeline
+│   ├── build-release.yml
+│   └── security-scan.yml
+└── security-reports/             # Relatórios gerados (gitignored)
 ```
 
 ### Funcionalidades dos Módulos
@@ -213,12 +308,27 @@ security-reports/
 
 ## 📝 Changelog
 
-### v2.0.0 (Atual)
-- ➕ Pipeline de segurança completo
-- ➕ Suporte multi-plataforma aprimorado
+### v2.1.0 (Atual)
+- ➕ Execução paralela (`--jobs N`)
+- ➕ Dry-run (`--dry-run`)
+- ➕ Submódulos, LFS, push, gc (flags opcionais)
+- ➕ Retry com backoff exponencial e timeout configurável
+- ➕ Exclusões via `--exclude` e `.gitupdateignore`
+- ➕ Config file em `~/.config/gitupdate/config`
+- ➕ Hooks pós-update (`.gitupdate-hook`)
+- ➕ Saída JSON (`--json`)
+- ➕ Notificações (desktop + webhook)
+- ➕ Detecção de worktrees e filtragem de repos aninhados
+- ➕ Detecção de estado dirty/ahead/behind
+- ➕ Suite de testes `bats`
+- 🔧 Refatoração: comandos como arrays (sem `bash -c`), traps para tempfiles
+- 🔧 Correção crítica: `stash + pop` agora preservam alterações locais
+
+### v2.0.0
+- ➕ Pipeline de segurança completo (Gitleaks, Semgrep, ShellCheck)
+- ➕ Suporte multi-plataforma (Linux, macOS, Windows Git Bash)
 - ➕ Módulo de utilitários de segurança centralizado
-- ➕ Sistema de pontuação A+
-- 🔧 Refatoração completa com eliminação de duplicação
+- 🔧 Refatoração modular
 
 ### v1.0.0
 - ➕ Sistema básico de atualização Git
@@ -240,7 +350,7 @@ Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICE
 
 - 🐛 **Issues**: [GitHub Issues](https://github.com/lgldsilva/GitUpdateProject/issues)
 - 📧 **Email**: Disponível no perfil GitHub
-- 📚 **Documentação**: Veja os arquivos na pasta `docs/`
+- 📚 **Documentação**: Consulte `README.md`, `INSTALL.md` e a ajuda do script (`./updateGit_v2.sh --help`)
 
 ---
 

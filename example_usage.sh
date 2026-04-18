@@ -8,8 +8,11 @@ LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib"
 
 # Exemplo 1: Usando apenas o sistema de logging
 echo "=== Exemplo 1: Sistema de Logging ==="
+# shellcheck source=lib/colors.sh
 source "$LIB_DIR/colors.sh"
+# shellcheck source=lib/config.sh
 source "$LIB_DIR/config.sh"
+# shellcheck source=lib/logger.sh
 source "$LIB_DIR/logger.sh"
 
 log "Esta é uma mensagem de log normal"
@@ -23,14 +26,17 @@ echo ""
 
 # Exemplo 2: Usando barra de progresso
 echo "=== Exemplo 2: Barra de Progresso ==="
+# shellcheck source=lib/progress.sh
 source "$LIB_DIR/progress.sh"
 
+# shellcheck disable=SC2034
 TOTAL_REPOS=10
+# shellcheck disable=SC2034
 PROCESSED_REPOS=0
 
 echo "Simulando processamento de 10 itens:"
 # Usar range bash nativo em vez de seq (mais compatível)
-for i in {1..10}; do
+for _ in {1..10}; do
     increment_progress
     sleep 0.5
 done
@@ -40,6 +46,7 @@ echo ""
 
 # Exemplo 3: Usando utilitários Git (se estivermos em um repositório Git)
 echo "=== Exemplo 3: Utilitários Git ==="
+# shellcheck source=lib/git_utils.sh
 source "$LIB_DIR/git_utils.sh"
 
 if git rev-parse --git-dir > /dev/null 2>&1; then
@@ -61,6 +68,7 @@ echo ""
 
 # Exemplo 4: Interface de usuário
 echo "=== Exemplo 4: Interface de Usuário ==="
+# shellcheck source=lib/ui.sh
 source "$LIB_DIR/ui.sh"
 
 show_header
